@@ -1,14 +1,11 @@
 import modoo_jit
 
 
-def to_str(func):
-    def wrapper(*args, **kwargs):
-        return str(func(*args, **kwargs))
-    return wrapper
-
-
 @modoo_jit.jit
 def f(a):
-    return 32 ** 2
+    b = a ** 2
+    print('b : {}'.format(b))
+    return b
 
-print(f(1))
+if __name__ == '__main__':
+    f(123)
