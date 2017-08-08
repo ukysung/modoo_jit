@@ -4,7 +4,10 @@ import inspect
 import re
 import hashlib
 import functools
+import collections
 import imp
+import ast
+import astunparse
 from distutils.extension import Extension
 import cython
 import Cython
@@ -237,6 +240,62 @@ def __invoke(%(params)s):
 
 
 def jit(func):
+    def _find_symbols(node, symbol_table):
+        if hasattr(node, 'body') is False and type(node) is ast.Assign:
+            if type(node.targets[0]) is ast.Name and type(node.value) is ast.Num:
+                if node.targets[0].id in symbol_table:
+                    if symbol_table[node.targets[0].id] != type(node.value.n):
+                        symbol_table[node.targets[0].id] = None
+                else:
+                    symbol_table[node.targets[0].id] = type(node.value.n)
+            return
+        elif hasattr(node, 'body') is False:
+            return
+
+        for i in node.body:
+            _find_symbols(i, symbol_table)
+
+    # astunparse 를 속이기 위한 클래스
+    class Expr:
+        class Name:
+            def __init__(self, name):
+                self.id = name
+
+        def __init__(self, name):
+            self.value = self.Name(name)
+
+    _continue_insert_types = True
+    def _insert_cython_types(node, symbol_table):
+        nonlocal _continue_insert_types
+        if hasattr(node, 'body') is False or _continue_insert_types is False:
+            return
+
+        if type(node) is ast.FunctionDef:
+            trans_map = collections.defaultdict(lambda:'object')
+            trans_map[int] = 'long'
+            trans_map[complex] = 'double complex'
+            trans_map[float] = 'double'
+            trans_map[bool] = 'bint'
+
+            for i in node.args.args:
+                if i.arg in symbol_table:
+                    arg_declare = '{} {}'.format(trans_map[symbol_table[i.arg]], i.arg)
+                    del symbol_table[i.arg]
+                    i.arg = arg_declare
+
+            for k, v in symbol_table.items():
+                if v is None:
+                    continue
+
+                cdef_declare = 'cdef {} {}'.format(trans_map[v], k)
+                node.body.insert(0, Expr(cdef_declare))
+
+            _continue_insert_types = False
+            return
+
+        for i in node.body:
+            _insert_cython_types(i, symbol_table)
+
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -250,7 +309,22 @@ def jit(func):
             else:
                 new_lines.append(line)
 
-        function_code = '\n'.join(new_lines) + '\nreturn {}'.format(func.__name__)
+        root = ast.parse('\n'.join(new_lines))
+        symbol_table = dict()
+        func_signature = inspect.signature(func)
+        for i, param in enumerate(func_signature.parameters.values()):
+            if param.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD:
+                if param.default is inspect.Parameter.empty:
+                    symbol_table[param.name] = type(args[i])
+                else:
+                    symbol_table[param.name] = type(param.default)
+
+        _find_symbols(root, symbol_table)
+
+        nonlocal _continue_insert_types
+        _continue_insert_types = True
+        _insert_cython_types(root, symbol_table)
+        function_code = astunparse.unparse(root) + '\nreturn {}'.format(func.__name__)
         cythonized_function = cython_inline(function_code)
         res = cythonized_function(*args, **kwargs)
         return res
