@@ -147,8 +147,7 @@ def cython_inline(code, get_type=unsafe_type, lib_dir=os.path.join(get_cython_ca
             arg_list = [arg[1] for arg in args]
             return invoke(*arg_list)
 
-    # orig_code : remove last line
-    orig_code = '\n'.join(code.splitlines()[:-1])
+    orig_code = code
     code, literals = strip_string_literals(code)
     if local_sym is None:
         local_sym = inspect.currentframe().f_back.f_back.f_locals
@@ -251,12 +250,9 @@ def jit(func):
             else:
                 new_lines.append(line)
 
-        arg_str = ','.join([str(i) for i in args])
-        if kwargs:
-            arg_str = arg_str + ','.join(['{}={}'.format(k, str(v)) for k, v in kwargs.items()])
-
-        function_code = '\n'.join(new_lines) + '\nreturn {}({})'.format(func.__name__, arg_str)
-        res = cython_inline(function_code)
+        function_code = '\n'.join(new_lines) + '\nreturn {}'.format(func.__name__)
+        cythonized_function = cython_inline(function_code)
+        res = cythonized_function(*args, **kwargs)
         return res
 
     return wrapper
