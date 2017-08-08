@@ -1,30 +1,53 @@
 import modoo_jit
 import time
-import math
 
 
-def f(x):
-    return math.exp(-(x ** 2))
+def primes(kmax):
+    if kmax > 1000:
+        kmax = 1000
 
+    result = list()
+    p = [0] * kmax
+    k = 0
+    n = 2
 
-def integrate_f(a, b, N):
-    s = 0
-    dx = (b - a) / N
-    for i in range(N):
-        s += f(a + i * dx)
-    return s * dx
+    while k < kmax:
+        i = 0
+        while i < k and n % p[i] != 0:
+            i = i + 1
+        if i == k:
+            p[k] = n
+            k = k + 1
+            result.append(n)
+        n = n + 1
+    return result
 
 
 @modoo_jit.jit
-def jit_integrate_f(a, b, N):
-    s = 0
-    dx = (b - a) / N
-    for i in range(N):
-        s += f(a + i * dx)
-    return s * dx
+def jit_primes(kmax):
+    if kmax > 1000:
+        kmax = 1000
+
+    result = list()
+    p = [0] * kmax
+    k = 0
+    n = 2
+
+    while k < kmax:
+        i = 0
+        while i < k and n % p[i] != 0:
+            i = i + 1
+        if i == k:
+            p[k] = n
+            k = k + 1
+            result.append(n)
+        n = n + 1
+    return result
 
 
 def repeatedly_call_function(count, fn, *args, **kwargs):
+    print(fn.__name__)
+
     t0 = time.time()
     for i in range(count):
         result = fn(*args, **kwargs)
@@ -35,13 +58,11 @@ def repeatedly_call_function(count, fn, *args, **kwargs):
 
 if __name__ == '__main__':
     REPEAT_COUNT = 500
-    N = 50000
+    N = 1000
 
-    print("integrate_f")
-    repeatedly_call_function(REPEAT_COUNT, integrate_f, 0.0, 10.0, N)
+    repeatedly_call_function(REPEAT_COUNT, primes, N)
 
     # warming up => prepare binary
-    jit_integrate_f(0, 0, 2)
+    jit_primes(0)
 
-    print("jit_integrate_f")
-    repeatedly_call_function(REPEAT_COUNT, jit_integrate_f, 0.0, 10.0, N)
+    repeatedly_call_function(REPEAT_COUNT, jit_primes, N)
