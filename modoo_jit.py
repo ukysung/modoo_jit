@@ -251,6 +251,9 @@ def jit(func):
             return
         elif hasattr(node, 'body') is False:
             return
+        elif type(node) is ast.For and type(node.iter) is ast.Call:
+            if node.iter.func.id in ('range', 'xrange'):
+                symbol_table[node.target.id] = int
 
         for i in node.body:
             _find_symbols(i, symbol_table)
