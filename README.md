@@ -2,9 +2,7 @@
 
 Usage
 -----
-
-::
-
+```python
 import modoo_jit
 
 @modoo_jit.jit
@@ -27,6 +25,7 @@ def primes(kmax):
             result.append(n)
         n = n + 1
     return result
-    
+
 if __name__ == '__main__':
   primes(1000)
+```
