@@ -1,4 +1,4 @@
-# modoo_jit
+# 모두의 JIT 컴파일러
 
 Usage
 -----
