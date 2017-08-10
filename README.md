@@ -1,5 +1,11 @@
 # 모두의 JIT 컴파일러
 
+Installation
+-----
+First install the following requirements:
+  * Python 3
+  * the dependencies listed in requirements.txt (`pip install -r requirements` or `pip3 install -r requirements` depending on your OS)
+
 Usage
 -----
 ```python
